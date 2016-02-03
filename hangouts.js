@@ -90,15 +90,20 @@ module.exports = function(RED) {
 		node.client = node.config.client;
 		node.senders = n.senders.split(",");
 
-		if (node.senders.length > 0) {
-			map(node.senders, node.config.getId).then(function(results) {
-				node.senderIds = results.map(function(result){
-					return result.entity[0].id.gaia_id;
+
+		function updateSenderIds() {
+			node.log("Update SenderIds");
+			if (node.senders.length > 0) {
+				map(node.senders, node.config.getId).then(function(results) {
+					node.senderIds = results.map(function(result){
+						return result.entity[0].id.gaia_id;
+					});
 				});
-			});
-		} else {
-			node.senderIds = [];
+			} else {
+				node.senderIds = [];
+			}
 		}
+		node.client.on("connected", updateSenderIds);
 
 		var status = function(status) {
 			node.status(status);
@@ -136,6 +141,7 @@ module.exports = function(RED) {
 
 		node.on("close", function(){
 			node.config.removeListener("status", status);
+			node.client.removeListener("connected", updateSenderIds);
 			node.client.removeListener("chat_message", chat_message);
 		});
 	}
