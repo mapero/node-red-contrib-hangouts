@@ -2,12 +2,19 @@ var hangups = require("hangupsjs");
 var tough = require('tough-cookie');
 var Q = require("q");
 
+function map(arr, func) {
+	return Q().then(function() {
+		return arr.map(function(el) {return func(el);});
+	}).all();
+}
+
 module.exports = function(RED) {
 
 	function HangoutsConfigNode(n) {
 		RED.nodes.createNode(this,n);
 		var node = this;
 		node.token = n.token;
+		node.contacts = {};
 
 		node.cookiestore = new tough.MemoryCookieStore();
 
@@ -17,6 +24,17 @@ module.exports = function(RED) {
 		}
 
 		node.client = new hangups({jarstor: node.cookiejar});
+
+		node.getId = function (user) {
+
+			if(node.contacts[user]) return node.contacts[user];
+
+			var promise = node.client.searchentities(user, 1);
+
+			promise.then(function(result) {	node.contacts[user] = result;	});
+			return promise;
+		};
+
 		//node.client.loglevel('debug');
 
 		var creds = function() {
@@ -70,7 +88,17 @@ module.exports = function(RED) {
 		var node = this;
 		node.config = RED.nodes.getNode(n.config);
 		node.client = node.config.client;
-		node.senders = n.senders;
+		node.senders = n.senders.split(",");
+
+		if (node.senders.length > 0) {
+			map(node.senders, node.config.getId).then(function(results) {
+				node.senderIds = results.map(function(result){
+					return result.entity[0].id.gaia_id;
+				});
+			});
+		} else {
+			node.senderIds = [];
+		}
 
 		var status = function(status) {
 			node.status(status);
@@ -79,16 +107,29 @@ module.exports = function(RED) {
 
 		// receive chat message events
 		var chat_message = function(ev) {
-			if(ev.sender_id.gaia_id === ev.self_event_state.user_id.gaia_id) {
+
+			if(node.senderIds === undefined) {
 				return;
 			}
-			node.send({
-				topic: node.topic,
-				payload: ev.chat_message.message_content.segment.map(function(segment) {
-					return segment.text;
-				}).join(),
-				event: ev
-			});
+			else if (node.senderIds > 0 && node.senderIds.indexOf(ev.sender_id.gaia_id) == -1) {
+				return;
+			}
+			else {
+				node.client.getentitybyid([ev.sender_id.gaia_id]).then(function(result) {
+					node.log(JSON.stringify(result));
+					node.send({
+						topic: node.topic,
+						payload: ev.chat_message.message_content.segment.map(function(segment) {
+							return segment.text;
+						}).join(),
+						event: ev,
+						sender: result.entities[0]
+					});
+				}, function(error) {
+					node.error(error);
+				});
+			}
+
 		};
 		node.client.on('chat_message', chat_message);
 
@@ -100,37 +141,45 @@ module.exports = function(RED) {
 	}
 	RED.nodes.registerType("hangouts-in", HangoutsInNode);
 
-		function HangoutsOutNode(n) {
-			RED.nodes.createNode(this,n);
-			var node = this;
-			node.config = RED.nodes.getNode(n.config);
-			node.client = node.config.client;
-			node.recipients = n.recipients;
+	function HangoutsOutNode(n) {
+		RED.nodes.createNode(this,n);
+		var node = this;
+		node.config = RED.nodes.getNode(n.config);
+		node.client = node.config.client;
+		node.recipients = n.recipients;
 
-			var status = function(status) {
-				node.status(status);
-			};
-			node.config.on("status", status);
+		var status = function(status) {
+			node.status(status);
+		};
+		node.config.on("status", status);
 
-			node.on("input", function(msg) {
-				var users = msg.recipients || node.recipients.split(",");
+		node.on("input", function(msg) {
+			var users = msg.recipients || node.recipients.split(",");
 
-				if(!Array.isArray(users)) {
-					users = [users];
-				}
+			if(!Array.isArray(users)) {
+				users = [users];
+			}
 
-				node.client.createconversation(users).then(
-					function(result) {
-						node.log(JSON.stringify(result));
-						return node.client.sendchatmessage(result.conversation.id.id,[[0, msg.payload.toString()]]);
-					})
-					.then(function(result) {
-						node.log(JSON.stringify(result));
-					})
-					.catch(function(error){
-						node.error(error);
-					})
-					.done();
+			var userIds = [];
+
+
+			map(users, node.config.getId).then(function(results) {
+				return node.client.createconversation(results.map(function(result){
+					return result.entity[0].id.gaia_id;
+				}));
+			})
+			.then(
+				function(result) {
+					node.log(JSON.stringify(result));
+					return node.client.sendchatmessage(result.conversation.id.id,[[0, msg.payload.toString()]]);
+				})
+				.then(function(result) {
+					node.log(JSON.stringify(result));
+				})
+				.catch(function(error){
+					node.error(error);
+				})
+				.done();
 			});
 
 
@@ -140,4 +189,4 @@ module.exports = function(RED) {
 		}
 		RED.nodes.registerType("hangouts-out", HangoutsOutNode);
 
-};
+	};
