@@ -54,7 +54,7 @@ module.exports = function(RED) {
 		});
 
 		node.on("close", function(){
-			node.client.removeListener();
+			node.client.removeAllListeners();
 		});
 
 		reconnect();
