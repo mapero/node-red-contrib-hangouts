@@ -9,11 +9,15 @@ module.exports = function(RED) {
 		var node = this;
 		node.token = n.token;
 
-		node.cookiejar = new tough.CookieJar();
+		node.cookiestore = new tough.MemoryCookieStore();
 
+		if(node.credentials.cookiestore) {
+			node.log("Loading cookies");
+			tough.CookieJar.deserializeSync(node.credentials.cookiestore, node.cookiestore);
+		}
 
-		node.client = new hangups();
-		node.client.loglevel('debug');
+		node.client = new hangups({jarstor: node.cookiejar});
+		//node.client.loglevel('debug');
 
 		var creds = function() {
 			return {
@@ -27,6 +31,11 @@ module.exports = function(RED) {
 
 		var reconnect = function() {
 			node.client.connect(creds).then( function() {
+				if (!node.credentials.cookiestore) {
+					node.log("Writing cookies into credentials");
+					var cookiejar = new tough.CookieJar(node.cookiestore);
+					RED.nodes.addCredentials(node.id, {cookiestore: cookiejar.toJSON()} );
+				}
 				node.log("connected");
 			});
 		};
@@ -50,7 +59,11 @@ module.exports = function(RED) {
 
 		reconnect();
 	}
-	RED.nodes.registerType("hangouts-config", HangoutsConfigNode);
+	RED.nodes.registerType("hangouts-config", HangoutsConfigNode, {
+		credentials: {
+			cookiestore: {type: "password"}
+		}
+	});
 
 	function HangoutsInNode(n) {
 		RED.nodes.createNode(this,n);

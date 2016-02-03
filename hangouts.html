@@ -5,6 +5,9 @@
       name: {value:"", required: false},
       token: {value:"", required: true}
     },
+    credentials: {
+      cookiestore: {type: "password"}
+    },
     label: function() {
       return this.name ? this.name : "Hangouts Config";
     }
