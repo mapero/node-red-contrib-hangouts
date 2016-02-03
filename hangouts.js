@@ -105,7 +105,7 @@ module.exports = function(RED) {
 			var node = this;
 			node.config = RED.nodes.getNode(n.config);
 			node.client = node.config.client;
-			node.recipes = n.recipes;
+			node.recipients = n.recipients;
 
 			var status = function(status) {
 				node.status(status);
@@ -113,7 +113,7 @@ module.exports = function(RED) {
 			node.config.on("status", status);
 
 			node.on("input", function(msg) {
-				var users = msg.recipes || node.recipes.split(",");
+				var users = msg.recipients || node.recipients.split(",");
 
 				if(!Array.isArray(users)) {
 					users = [users];
