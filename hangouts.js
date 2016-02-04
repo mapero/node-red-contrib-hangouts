@@ -15,6 +15,7 @@ module.exports = function(RED) {
 		var node = this;
 		node.token = n.token;
 		node.contacts = {};
+		node.isConnected = false;
 
 		node.cookiestore = new tough.MemoryCookieStore();
 
@@ -31,7 +32,9 @@ module.exports = function(RED) {
 
 			var promise = node.client.searchentities(user, 1);
 
-			promise.then(function(result) {	node.contacts[user] = result;	});
+			promise.then(function(result) {
+				node.contacts[user] = result;
+			});
 			return promise;
 		};
 
@@ -60,15 +63,18 @@ module.exports = function(RED) {
 
 		node.client.on('connect_failed', function() {
 			node.emit("status", {fill:"red",shape:"ring",text:"disconnected"});
+			node.isConnected = false;
 			reconnect();
 		});
 
 		node.client.on('connected', function() {
 			node.emit("status", {fill:"green",shape:"dot",text:"connected"});
+			node.isConnected = true;
 		});
 
 		node.client.on('connecting', function() {
 			node.emit("status", {fill:"yellow",shape:"ring",text:"connecting ..."});
+			node.isConnected = false;
 		});
 
 		node.on("close", function(){
@@ -90,20 +96,28 @@ module.exports = function(RED) {
 		node.client = node.config.client;
 		node.senders = n.senders.split(",");
 
-
 		function updateSenderIds() {
-			node.log("Update SenderIds");
 			if (node.senders.length > 0) {
+				node.log("Update SenderIds");
 				map(node.senders, node.config.getId).then(function(results) {
-					node.senderIds = results.map(function(result){
-						return result.entity[0].id.gaia_id;
+					node.senderIds = results.map(function(result,index){
+						if(result.entity) {
+							node.log("Found id for contact "+node.senders[index]+": "+result.entity[0].id.gaia_id);
+							return result.entity[0].id.gaia_id;
+						} else {
+							node.error("Cannot resolve gaia_id from contact: "+node.senders[index]);
+						}
 					});
-				});
+				}).done();
 			} else {
 				node.senderIds = [];
 			}
 		}
 		node.client.on("connected", updateSenderIds);
+
+		if(node.config.isConnected) {
+			updateSenderIds();
+		}
 
 		var status = function(status) {
 			node.status(status);
@@ -160,6 +174,8 @@ module.exports = function(RED) {
 		node.config.on("status", status);
 
 		node.on("input", function(msg) {
+			if(!node.config.isConnected) return;
+
 			var users = msg.recipients || node.recipients.split(",");
 
 			if(!Array.isArray(users)) {
@@ -170,8 +186,12 @@ module.exports = function(RED) {
 
 
 			map(users, node.config.getId).then(function(results) {
-				return node.client.createconversation(results.map(function(result){
-					return result.entity[0].id.gaia_id;
+				return node.client.createconversation(results.map(function(result, index){
+					if(result.entity) {
+						return result.entity[0].id.gaia_id;
+					} else {
+						throw new Error("Cannot resolve gaia_id from contact: "+users[index]);
+					}
 				}));
 			})
 			.then(
