@@ -14,8 +14,10 @@ module.exports = function(RED) {
 		RED.nodes.createNode(this,n);
 		var node = this;
 		node.token = n.token;
-		node.contacts = {};
+		node.gaia_id = "";
+		node.contacts = [];
 		node.isConnected = false;
+
 
 		node.cookiestore = new tough.MemoryCookieStore();
 
@@ -25,17 +27,43 @@ module.exports = function(RED) {
 		}
 
 		node.client = new hangups({jarstor: node.cookiejar});
+		if(n.debug) node.client.loglevel('debug');
 
-		node.getId = function (user) {
 
-			if(node.contacts[user]) return node.contacts[user];
-
-			var promise = node.client.searchentities(user, 1);
-
-			promise.then(function(result) {
-				node.contacts[user] = result;
+		function updateContacts() {
+			node.gaia_id = node.client.init.self_entity.id.gaia_id;
+			node.client.init.conv_states.forEach(function(conv){
+				conv.conversation.participant_data.forEach(function(participant) {
+					if(participant.id.gaia_id != node.gaia_id) {
+						node.client.getentitybyid([participant.id.gaia_id]).then(function(entity) {
+							node.contacts.push({
+								fallback_name: participant.fallback_name,
+								id: participant.id.gaia_id,
+								emails: entity.entities[0].properties.emails
+							});
+							node.log(JSON.stringify({fallback_name: participant.fallback_name,
+								id: participant.id.gaia_id,
+								emails: entity.entities[0].properties.emails
+							}));
+						}).done();
+					}
+				});
 			});
-			return promise;
+		}
+
+		node.getContactId = function(request) {
+			if(!isNaN(request)) {
+				return request;
+			} else {
+				var contact = node.contacts.find(function(contact) {
+					if(/^[a-z0-9_\-\.]{2,}@[a-z0-9_\-\.]{2,}\.[a-z]{2,}$/i.test(request)) {
+						if (contact.emails.indexOf(request) > -1) return true;
+					} else {
+						if (request === contact.fallback_name) return true;
+					}
+				});
+				if(contact) return contact.id;
+			}
 		};
 
 		//node.client.loglevel('debug');
@@ -68,6 +96,7 @@ module.exports = function(RED) {
 		});
 
 		node.client.on('connected', function() {
+			updateContacts();
 			node.emit("status", {fill:"green",shape:"dot",text:"connected"});
 			node.isConnected = true;
 		});
@@ -95,29 +124,7 @@ module.exports = function(RED) {
 		node.config = RED.nodes.getNode(n.config);
 		node.client = node.config.client;
 		node.senders = n.senders.split(",");
-
-		function updateSenderIds() {
-			if (node.senders.length > 0) {
-				node.log("Update SenderIds");
-				map(node.senders, node.config.getId).then(function(results) {
-					node.senderIds = results.map(function(result,index){
-						if(result.entity) {
-							node.log("Found id for contact "+node.senders[index]+": "+result.entity[0].id.gaia_id);
-							return result.entity[0].id.gaia_id;
-						} else {
-							node.error("Cannot resolve gaia_id from contact: "+node.senders[index]);
-						}
-					});
-				}).done();
-			} else {
-				node.senderIds = [];
-			}
-		}
-		node.client.on("connected", updateSenderIds);
-
-		if(node.config.isConnected) {
-			updateSenderIds();
-		}
+		node.suppress = n.suppress;
 
 		var status = function(status) {
 			node.status(status);
@@ -127,25 +134,19 @@ module.exports = function(RED) {
 		// receive chat message events
 		var chat_message = function(ev) {
 
-			if(node.senderIds === undefined) {
+			if(node.suppress && ev.sender_id.gaia_id === ev.self_event_state.user_id.gaia_id) {
 				return;
 			}
-			else if (node.senderIds > 0 && node.senderIds.indexOf(ev.sender_id.gaia_id) == -1) {
-				return;
-			}
-			else {
-				node.client.getentitybyid([ev.sender_id.gaia_id]).then(function(result) {
-					node.log(JSON.stringify(result));
-					node.send({
-						topic: node.topic,
-						payload: ev.chat_message.message_content.segment.map(function(segment) {
-							return segment.text;
-						}).join(),
-						event: ev,
-						sender: result.entities[0]
-					});
-				}, function(error) {
-					node.error(error);
+
+			var senderIds = node.senders.map(node.config.getContactId);
+
+			if(senderIds.length !== 0 && senderIds.indexOf(ev.sender_id.gaia_id) > -1) {
+				node.send({
+					topic: node.topic,
+					payload: ev.chat_message.message_content.segment.map(function(segment) {
+						return segment.text;
+					}).join(),
+					event: ev
 				});
 			}
 
@@ -155,7 +156,6 @@ module.exports = function(RED) {
 
 		node.on("close", function(){
 			node.config.removeListener("status", status);
-			node.client.removeListener("connected", updateSenderIds);
 			node.client.removeListener("chat_message", chat_message);
 		});
 	}
@@ -182,22 +182,16 @@ module.exports = function(RED) {
 				users = [users];
 			}
 
-			var userIds = [];
-
-
-			map(users, node.config.getId).then(function(results) {
-				return node.client.createconversation(results.map(function(result, index){
-					if(result.entity) {
-						return result.entity[0].id.gaia_id;
-					} else {
-						throw new Error("Cannot resolve gaia_id from contact: "+users[index]);
-					}
-				}));
+			map(users, node.config.getContactId).then(function(results) {
+				return node.client.createconversation(results);
 			})
 			.then(
 				function(result) {
-					node.log(JSON.stringify(result));
-					return node.client.sendchatmessage(result.conversation.id.id,[[0, msg.payload.toString()]]);
+					if(result.conversation) {
+						return node.client.sendchatmessage(result.conversation.id.id,[[0, msg.payload.toString()]]);
+					} else {
+						throw new Error("Can not create conversation. This is usually the case when you provide wrong recipients.");
+					}
 				})
 				.then(function(result) {
 					node.log(JSON.stringify(result));
