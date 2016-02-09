@@ -1,3 +1,6 @@
+# Update 0.1.6
+The last update will bring refresh token and cookies out of sync and will result in authentication error. To fix this, you have to delete the configuration node and create a new one.
+
 # Google Hangouts for Node-RED
 Easily integrate google hangout messages into your node-RED flow.
 
