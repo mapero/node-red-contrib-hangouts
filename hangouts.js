@@ -17,7 +17,7 @@ module.exports = function(RED) {
 		node.gaia_id = "";
 		node.contacts = [];
 		node.isConnected = false;
-
+		node.status = {fill:"yellow",shape:"ring",text:"connecting ..."};
 
 		node.cookiestore = new tough.MemoryCookieStore();
 
@@ -90,19 +90,22 @@ module.exports = function(RED) {
 		};
 
 		node.client.on('connect_failed', function() {
-			node.emit("status", {fill:"red",shape:"ring",text:"disconnected"});
+			node.status = {fill:"red",shape:"ring",text:"disconnected"};
+			node.emit("status", node.status);
 			node.isConnected = false;
 			reconnect();
 		});
 
 		node.client.on('connected', function() {
-			updateContacts();
-			node.emit("status", {fill:"green",shape:"dot",text:"connected"});
+			node.status = {fill:"green",shape:"dot",text:"connected"};
+			node.emit("status", node.status);
 			node.isConnected = true;
+			updateContacts();
 		});
 
 		node.client.on('connecting', function() {
-			node.emit("status", {fill:"yellow",shape:"ring",text:"connecting ..."});
+			node.status = {fill:"yellow",shape:"ring",text:"connecting ..."};
+			node.emit("status", node.status);
 			node.isConnected = false;
 		});
 
@@ -126,10 +129,11 @@ module.exports = function(RED) {
 		node.senders = n.senders.split(",");
 		node.suppress = n.suppress;
 
-		var status = function(status) {
+		node.status(node.config.status);
+		node.refreshStatus = function(status) {
 			node.status(status);
 		};
-		node.config.on("status", status);
+		node.config.on("status", node.refreshStatus);
 
 		// receive chat message events
 		var chat_message = function(ev) {
@@ -155,7 +159,7 @@ module.exports = function(RED) {
 
 
 		node.on("close", function(){
-			node.config.removeListener("status", status);
+			node.config.removeListener("status", node.refreshStatus);
 			node.client.removeListener("chat_message", chat_message);
 		});
 	}
@@ -168,10 +172,11 @@ module.exports = function(RED) {
 		node.client = node.config.client;
 		node.recipients = n.recipients;
 
-		var status = function(status) {
+		node.status(node.config.status);
+		node.refreshStatus = function(status) {
 			node.status(status);
 		};
-		node.config.on("status", status);
+		node.config.on("status", node.refreshStatus);
 
 		node.on("input", function(msg) {
 			if(!node.config.isConnected) return;
@@ -194,7 +199,7 @@ module.exports = function(RED) {
 					}
 				})
 				.then(function(result) {
-					node.log(JSON.stringify(result));
+					node.log("Message successfully send.");
 				})
 				.catch(function(error){
 					node.error(error);
@@ -204,7 +209,7 @@ module.exports = function(RED) {
 
 
 			node.on("close", function(){
-				node.config.removeListener("status", status);
+				node.config.removeListener("status", node.refreshStatus);
 			});
 		}
 		RED.nodes.registerType("hangouts-out", HangoutsOutNode);
