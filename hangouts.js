@@ -32,6 +32,7 @@ module.exports = function(RED) {
 
 		function updateContacts() {
 			node.gaia_id = node.client.init.self_entity.id.gaia_id;
+			node.log("Your gaia_id is: "+node.gaia_id);
 			node.client.init.conv_states.forEach(function(conv){
 				conv.conversation.participant_data.forEach(function(participant) {
 					if(participant.id.gaia_id != node.gaia_id) {
