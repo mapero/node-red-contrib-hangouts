@@ -178,6 +178,7 @@ module.exports = function(RED) {
 		};
 		node.config.on("status", node.refreshStatus);
 
+
 		node.on("input", function(msg) {
 			if(!node.config.isConnected) return;
 
