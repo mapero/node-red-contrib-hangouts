@@ -26,7 +26,7 @@ module.exports = function(RED) {
 			tough.CookieJar.deserializeSync(node.credentials.cookiestore, node.cookiestore);
 		}
 
-		node.client = new hangups({jarstor: node.cookiejar});
+		node.client = new hangups({jarstore: node.cookiestore});
 		if(n.debug) node.client.loglevel('debug');
 
 
