@@ -91,10 +91,11 @@ module.exports = function(RED) {
 		};
 
 		node.client.on('connect_failed', function() {
+			node.warn("Connection lost, reconnecting ...");
 			node.status = {fill:"red",shape:"ring",text:"disconnected"};
 			node.emit("status", node.status);
 			node.isConnected = false;
-			reconnect();
+			node.timeout = setTimeout(reconnect, 5000);
 		});
 
 		node.client.on('connected', function() {
@@ -112,6 +113,7 @@ module.exports = function(RED) {
 
 		node.on("close", function(){
 			node.client.removeAllListeners();
+			if (node.timeout) clearTimeout(node.timeout);
 		});
 
 		reconnect();
