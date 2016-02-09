@@ -1,11 +1,21 @@
 var hangups = require("hangupsjs");
 var tough = require('tough-cookie');
 var Q = require("q");
+var homeDir = require("home-dir");
+var fs = require("fs");
 
 function map(arr, func) {
 	return Q().then(function() {
 		return arr.map(function(el) {return func(el);});
 	}).all();
+}
+
+function mkdirSync(path) {
+	try {
+		fs.mkdirSync(path);
+	} catch(e) {
+		if ( e.code != 'EEXIST' ) throw e;
+	}
 }
 
 module.exports = function(RED) {
@@ -18,6 +28,9 @@ module.exports = function(RED) {
 		node.contacts = [];
 		node.isConnected = false;
 		node.status = {fill:"yellow",shape:"ring",text:"connecting ..."};
+		node.refreshtoken = homeDir('/.node-red-contrib-hangouts/'+node.id+'.txt');
+
+		mkdirSync(homeDir('/.node-red-contrib-hangouts'));
 
 		node.cookiestore = new tough.MemoryCookieStore();
 
@@ -26,7 +39,10 @@ module.exports = function(RED) {
 			tough.CookieJar.deserializeSync(node.credentials.cookiestore, node.cookiestore);
 		}
 
-		node.client = new hangups({jarstore: node.cookiestore});
+		node.client = new hangups({
+			jarstore: node.cookiestore,
+			rtokenpath: node.refreshtoken
+		});
 		if(n.debug) node.client.loglevel('debug');
 
 
@@ -129,8 +145,13 @@ module.exports = function(RED) {
 		var node = this;
 		node.config = RED.nodes.getNode(n.config);
 		node.client = node.config.client;
-		node.senders = n.senders.split(",");
 		node.suppress = n.suppress;
+
+		if(n.senders) {
+			node.senders = n.senders.split(",");
+		} else {
+			node.senders = [];
+		}
 
 		node.status(node.config.status);
 		node.refreshStatus = function(status) {
@@ -147,7 +168,7 @@ module.exports = function(RED) {
 
 			var senderIds = node.senders.map(node.config.getContactId);
 
-			if(senderIds.length !== 0 && senderIds.indexOf(ev.sender_id.gaia_id) > -1) {
+			if(senderIds.length === 0 || senderIds.indexOf(ev.sender_id.gaia_id) > -1) {
 				node.send({
 					topic: node.topic,
 					payload: ev.chat_message.message_content.segment.map(function(segment) {
