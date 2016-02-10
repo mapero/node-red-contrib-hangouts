@@ -23,7 +23,6 @@ module.exports = function(RED) {
 	function HangoutsConfigNode(n) {
 		RED.nodes.createNode(this,n);
 		var node = this;
-		node.token = n.token;
 		node.gaia_id = "";
 		node.contacts = [];
 		node.isConnected = false;
@@ -89,7 +88,7 @@ module.exports = function(RED) {
 			return {
 				auth: function() {
 					return Q().then(function() {
-						return node.token;
+						return node.credentials.token;
 					});
 				}
 			};
@@ -136,6 +135,7 @@ module.exports = function(RED) {
 	}
 	RED.nodes.registerType("hangouts-config", HangoutsConfigNode, {
 		credentials: {
+			token: {type: "text"},
 			cookiestore: {type: "password"}
 		}
 	});

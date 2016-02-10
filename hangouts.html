@@ -3,10 +3,10 @@
     category: "config",
     defaults: {
       name: {value:"", required: false},
-      token: {value:"", required: true},
-      debug: {value:false, required: true}
+        debug: {value:false, required: true}
     },
     credentials: {
+      token: {type: "text"},
       cookiestore: {type: "password"}
     },
     label: function() {
