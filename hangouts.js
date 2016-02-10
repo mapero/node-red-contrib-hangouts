@@ -31,15 +31,15 @@ module.exports = function(RED) {
 
 		mkdirSync(homeDir('/.node-red-contrib-hangouts'));
 
-		node.cookiestore = new tough.MemoryCookieStore();
-
-		if(node.credentials.cookiestore) {
+		if(node.credentials.cookiejar) {
 			node.log("Loading cookies");
-			tough.CookieJar.deserializeSync(node.credentials.cookiestore, node.cookiestore);
+			node.cookiejar = tough.CookieJar.deserializeSync(node.credentials.cookiejar);
+		} else {
+			node.cookiejar = new tough.CookieJar();
 		}
 
 		node.client = new hangups({
-			jarstore: node.cookiestore,
+			jarstore: node.cookiejar.store,
 			rtokenpath: node.refreshtoken
 		});
 		if(n.debug) node.client.loglevel('debug');
@@ -96,10 +96,9 @@ module.exports = function(RED) {
 
 		var reconnect = function() {
 			node.client.connect(creds).then( function() {
-				if (!node.credentials.cookiestore) {
+				if (!node.credentials.cookiejar) {
 					node.log("Writing cookies into credentials");
-					var cookiejar = new tough.CookieJar(node.cookiestore);
-					RED.nodes.addCredentials(node.id, {cookiestore: cookiejar.toJSON()} );
+					RED.nodes.addCredentials(node.id, {cookiejar: node.cookiejar.toJSON()} );
 				}
 				node.log("connected");
 			});
@@ -136,7 +135,7 @@ module.exports = function(RED) {
 	RED.nodes.registerType("hangouts-config", HangoutsConfigNode, {
 		credentials: {
 			token: {type: "text"},
-			cookiestore: {type: "password"}
+			cookiejar: {type: "password"}
 		}
 	});
 
