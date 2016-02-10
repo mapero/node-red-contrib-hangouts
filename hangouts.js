@@ -174,7 +174,8 @@ module.exports = function(RED) {
 					payload: ev.chat_message.message_content.segment.map(function(segment) {
 						return segment.text;
 					}).join(),
-					event: ev
+					event: ev,
+					conversationId: ev.conversation_id.id
 				});
 			}
 
@@ -212,31 +213,33 @@ module.exports = function(RED) {
 				users = [users];
 			}
 
-			map(users, node.config.getContactId).then(function(results) {
-				return node.client.createconversation(results);
-			})
-			.then(
-				function(result) {
+			if (msg.conversationId) {
+				node.client.sendchatmessage(msg.conversationId,[[0, msg.payload.toString()]]).then(function(result) {
+					node.log("Message successfully send.");
+				}).catch(function(error) {
+					node.error(error);
+				}).done();
+			} else {
+				map(users, node.config.getContactId).then(function(results) {
+					return node.client.createconversation(results);
+				}).then(function(result) {
 					if(result.conversation) {
 						return node.client.sendchatmessage(result.conversation.id.id,[[0, msg.payload.toString()]]);
 					} else {
 						throw new Error("Can not create conversation. This is usually the case when you provide wrong recipients.");
 					}
-				})
-				.then(function(result) {
+				}).then(function(result) {
 					node.log("Message successfully send.");
-				})
-				.catch(function(error){
-					node.error(error);
-				})
-				.done();
-			});
-
+				}).catch(function(error) {
+					node.log(error);
+				}).done();
+			}
 
 			node.on("close", function(){
 				node.config.removeListener("status", node.refreshStatus);
 			});
-		}
-		RED.nodes.registerType("hangouts-out", HangoutsOutNode);
+		});
+	}
+	RED.nodes.registerType("hangouts-out", HangoutsOutNode);
 
-	};
+};
