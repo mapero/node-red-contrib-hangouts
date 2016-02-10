@@ -143,9 +143,16 @@ module.exports = function(RED) {
 	function HangoutsInNode(n) {
 		RED.nodes.createNode(this,n);
 		var node = this;
-		node.config = RED.nodes.getNode(n.config);
-		node.client = node.config.client;
 		node.suppress = n.suppress;
+
+		node.config = RED.nodes.getNode(n.config);
+		if(!node.config) {
+			node.error("Config node missing");
+			node.status({fill:"red",shape:"ring",text:"Error: Config node missing"});
+			return;
+		}
+		node.client = node.config.client;
+
 
 		if(n.senders) {
 			node.senders = n.senders.split(",");
@@ -193,9 +200,16 @@ module.exports = function(RED) {
 	function HangoutsOutNode(n) {
 		RED.nodes.createNode(this,n);
 		var node = this;
-		node.config = RED.nodes.getNode(n.config);
-		node.client = node.config.client;
 		node.recipients = n.recipients;
+
+		node.config = RED.nodes.getNode(n.config);
+		if(!node.config) {
+			node.error("Config node missing");
+			node.status({fill:"red",shape:"ring",text:"Error: Config node missing"});
+			return;
+		}
+		node.client = node.config.client;
+
 
 		node.status(node.config.status);
 		node.refreshStatus = function(status) {
