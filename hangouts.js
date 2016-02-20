@@ -48,23 +48,30 @@ module.exports = function(RED) {
 		function updateContacts() {
 			node.gaia_id = node.client.init.self_entity.id.gaia_id;
 			node.log("Your gaia_id is: "+node.gaia_id);
-			node.client.init.conv_states.forEach(function(conv){
-				conv.conversation.participant_data.forEach(function(participant) {
-					if(participant.id.gaia_id != node.gaia_id) {
-						node.client.getentitybyid([participant.id.gaia_id]).then(function(entity) {
-							node.contacts.push({
-								fallback_name: participant.fallback_name,
-								id: participant.id.gaia_id,
-								emails: entity.entities[0].properties.emails
-							});
-							node.log(JSON.stringify({fallback_name: participant.fallback_name,
-								id: participant.id.gaia_id,
-								emails: entity.entities[0].properties.emails
-							}));
-						}).done();
+			var participants = [];
+			map(node.client.init.conv_states, function(conv) {
+				return map(conv.conversation.participant_data, function(participant) {
+					if(participant.id.gaia_id != node.gaia_id) participants.push(participant);
+					return;
+				});
+			}).then(function(result) {
+				return node.client.getentitybyid(participants.map(function(participant) {
+					return participant.id.gaia_id;
+				}));
+			}).then(function(result) {
+				result.entities.forEach(function(entity) {
+					if(node.contacts.findIndex(function(contact) {
+						return entity.id.gaia_id === contact.id;
+					}) === -1) {
+						node.contacts.push({
+							fallback_name: entity.properties.display_name,
+							id: entity.id.gaia_id,
+							emails: entity.properties.emails
+						});
 					}
 				});
-			});
+				node.warn("Usable contacts are: "+JSON.stringify(node.contacts));
+			}).done();
 		}
 
 		node.getContactId = function(request) {
@@ -244,7 +251,7 @@ module.exports = function(RED) {
 				}).then(function(result) {
 					node.log("Message successfully send.");
 				}).catch(function(error) {
-					node.log(error);
+					node.error(error);
 				}).done();
 			}
 
