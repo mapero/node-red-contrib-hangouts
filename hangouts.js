@@ -25,6 +25,7 @@ module.exports = function(RED) {
 		var node = this;
 		node.gaia_id = "";
 		node.contacts = [];
+		node.conversations = [];
 		node.isConnected = false;
 		node.status = {fill:"yellow",shape:"ring",text:"connecting ..."};
 		node.refreshtoken = homeDir('/.node-red-contrib-hangouts/'+node.id+'.txt');
@@ -44,52 +45,18 @@ module.exports = function(RED) {
 		});
 		if(n.debug) node.client.loglevel('debug');
 
-
-		function updateContacts() {
-			node.gaia_id = node.client.init.self_entity.id.gaia_id;
-			node.log("Your gaia_id is: "+node.gaia_id);
-			var participants = [];
-			map(node.client.init.conv_states, function(conv) {
-				return map(conv.conversation.participant_data, function(participant) {
-					if(participant.id.gaia_id != node.gaia_id) participants.push(participant);
-					return;
+		function updateConversations() {
+			node.client.init.conv_states.forEach(function(conversation) {
+				node.conversations.push({
+					id: conversation.conversation.conversation_id.id,
+					name: conversation.conversation.name,
+					participants: conversation.conversation.participant_data.map(function(participant) {
+						return participant.fallback_name;
+					})
 				});
-			}).then(function(result) {
-				return node.client.getentitybyid(participants.map(function(participant) {
-					return participant.id.gaia_id;
-				}));
-			}).then(function(result) {
-				result.entities.forEach(function(entity) {
-					if(node.contacts.findIndex(function(contact) {
-						return entity.id.gaia_id === contact.id;
-					}) === -1) {
-						node.contacts.push({
-							fallback_name: entity.properties.display_name,
-							id: entity.id.gaia_id,
-							emails: entity.properties.emails
-						});
-					}
-				});
-				node.warn("Usable contacts are: "+JSON.stringify(node.contacts));
-			}).done();
+			});
+			node.warn(node.conversations);
 		}
-
-		node.getContactId = function(request) {
-			if(!isNaN(request)) {
-				return request;
-			} else {
-				var contact = node.contacts.find(function(contact) {
-					if(/^[a-z0-9_\-\.]{2,}@[a-z0-9_\-\.]{2,}\.[a-z]{2,}$/i.test(request)) {
-						if (contact.emails.indexOf(request) > -1) return true;
-					} else {
-						if (request === contact.fallback_name) return true;
-					}
-				});
-				if(contact) return contact.id;
-			}
-		};
-
-		//node.client.loglevel('debug');
 
 		var creds = function() {
 			return {
@@ -123,7 +90,7 @@ module.exports = function(RED) {
 			node.status = {fill:"green",shape:"dot",text:"connected"};
 			node.emit("status", node.status);
 			node.isConnected = true;
-			updateContacts();
+			updateConversations();
 		});
 
 		node.client.on('connecting', function() {
@@ -150,6 +117,7 @@ module.exports = function(RED) {
 		RED.nodes.createNode(this,n);
 		var node = this;
 		node.suppress = n.suppress;
+		node.conversationId = n.conversationId;
 
 		node.config = RED.nodes.getNode(n.config);
 		if(!node.config) {
@@ -158,13 +126,6 @@ module.exports = function(RED) {
 			return;
 		}
 		node.client = node.config.client;
-
-
-		if(n.senders) {
-			node.senders = n.senders.split(",");
-		} else {
-			node.senders = [];
-		}
 
 		node.status(node.config.status);
 		node.refreshStatus = function(status) {
@@ -176,12 +137,11 @@ module.exports = function(RED) {
 		var chat_message = function(ev) {
 
 			if(node.suppress && ev.sender_id.gaia_id === ev.self_event_state.user_id.gaia_id) {
+				node.log("Ignored own message.");
 				return;
 			}
 
-			var senderIds = node.senders.map(node.config.getContactId);
-
-			if(senderIds.length === 0 || senderIds.indexOf(ev.sender_id.gaia_id) > -1) {
+			if(!node.conversationId || node.conversationId === ev.conversation_id.id) {
 				node.send({
 					topic: node.topic,
 					payload: ev.chat_message.message_content.segment.map(function(segment) {
@@ -206,7 +166,7 @@ module.exports = function(RED) {
 	function HangoutsOutNode(n) {
 		RED.nodes.createNode(this,n);
 		var node = this;
-		node.recipients = n.recipients;
+		node.conversationId = n.conversationId;
 
 		node.config = RED.nodes.getNode(n.config);
 		if(!node.config) {
@@ -225,35 +185,21 @@ module.exports = function(RED) {
 
 
 		node.on("input", function(msg) {
-			if(!node.config.isConnected) return;
-
-			var users = msg.recipients || node.recipients.split(",");
-
-			if(!Array.isArray(users)) {
-				users = [users];
+			if(!node.config.isConnected) {
+				node.error("Client not connected.");
 			}
 
-			if (msg.conversationId) {
-				node.client.sendchatmessage(msg.conversationId,[[0, msg.payload.toString()]]).then(function(result) {
-					node.log("Message successfully send.");
-				}).catch(function(error) {
-					node.error(error);
-				}).done();
-			} else {
-				map(users, node.config.getContactId).then(function(results) {
-					return node.client.createconversation(results);
-				}).then(function(result) {
-					if(result.conversation) {
-						return node.client.sendchatmessage(result.conversation.id.id,[[0, msg.payload.toString()]]);
-					} else {
-						throw new Error("Can not create conversation. This is usually the case when you provide wrong recipients.");
-					}
-				}).then(function(result) {
-					node.log("Message successfully send.");
-				}).catch(function(error) {
-					node.error(error);
-				}).done();
+			var conversationId = msg.conversationId ? msg.conversationId : node.conversationId;
+			if(!conversationId) {
+				node.error("No conversation id provided.");
 			}
+
+			node.client.sendchatmessage(conversationId,[[0, msg.payload.toString()]])
+			.then(function(result) {
+				node.log("Message successfully send.");
+			}).catch(function(error) {
+				node.error(error);
+			}).done();
 
 			node.on("close", function(){
 				node.config.removeListener("status", node.refreshStatus);

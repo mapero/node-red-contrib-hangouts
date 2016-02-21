@@ -46,7 +46,7 @@
       config: {type:"hangouts-config",required:true},
       name: {value:"", required: false},
       topic: { value:"", required: false},
-      senders: { value:"", required: false},
+      conversationId: { value:"", required: false},
       suppress: {value:true, required: true}
     },
     inputs:0,
@@ -71,8 +71,8 @@
         <input type="text" id="node-input-topic" />
     </div>
     <div class="form-row">
-        <label for="node-input-senders"><i class="icon-bookmark"></i>Senders</label>
-        <input type="text" id="node-input-senders" />
+        <label for="node-input-conversationId"><i class="icon-bookmark"></i>Conversation id</label>
+        <input type="text" id="node-input-conversationId" />
     </div>
     <div class="form-row">
       <label>&nbsp;</label>
@@ -83,7 +83,7 @@
 
 <script type="text/x-red" data-help-name="hangouts-in">
    <p>Receive messages from Google hangouts</p>
-   <p>The input node is used to receive messages from the hangouts network. You can use the senders field to filter incoming messages by sender. If the field is empty, all messages are accepted. You can use multiple contacts by separating them with a comma. Make sure to use valid and registered emails and make sure that both accounts have accepted the hangout invitation. The message contains the message in <b>msg.payload</b>, the contact information in <b>msg.sender</b> and the complete message event object in <b>msg.event</b>.</p>
+   <p>The input node is used to receive messages from the hangouts network. You can use the conversation id to filter incoming messages by conversation. If the field is empty, all messages are accepted. Make sure to use a valid conversation id. Since the node will also receive messages send from the account, you can suppress this messages over the checkbox. The message contains the message in <b>msg.payload</b>, the conversation id in <b>msg.conversationId</b> and the complete message event object in <b>msg.event</b>.</p>
 </script>
 
 
@@ -95,7 +95,7 @@
     defaults: {
       config: {type:"hangouts-config",required:true},
       name: {value:"", required: false},
-      recipients: {value:"", required: false}
+      conversationId: {value:"", required: false}
     },
     inputs:1,
     outputs:0,
@@ -115,12 +115,12 @@
         <input type="text" id="node-input-name" />
     </div>
     <div class="form-row">
-        <label for="node-input-recipients"><i class="icon-bookmark"></i>Recipients</label>
-        <input type="text" id="node-input-recipients" />
+        <label for="node-input-conversationId"><i class="icon-bookmark"></i>Conversation id</label>
+        <input type="text" id="node-input-conversationId" />
     </div>
 </script>
 
 <script type="text/x-red" data-help-name="hangouts-out">
    <p>Receive messages from Google hangouts</p>
-   <p>The output node is used to send messages to one or multiple contacts. You can use the recipients field or by providing a array to <b>msg.recipients</b> to define the recipients. If you have multiple contacts in one node, a group chat will be initialized. Use multiple nodes to create separated conversations. The <b>msg.payload</b> will be send to the contacts.</p>
+   <p>The output node is used to send messages to an existing conversation. You can use the conversation id on the properties or provide a valid conversation id in <b>msg.conversationId</b>. The <b>msg.payload</b> will be send to the contacts.</p>
 </script>
