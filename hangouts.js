@@ -55,7 +55,7 @@ module.exports = function(RED) {
 					})
 				});
 			});
-			node.warn(node.conversations);
+			node.warn(JSON.stringify(node.conversations));
 		}
 
 		var creds = function() {
