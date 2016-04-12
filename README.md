@@ -1,6 +1,8 @@
 [![Join the chat at https://gitter.im/mapero/node-red-contrib-hangouts](https://badges.gitter.im/mapero/node-red-contrib-hangouts.svg)](https://gitter.im/mapero/node-red-contrib-hangouts?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Update 0.1.12
+
+[![Join the chat at https://gitter.im/mapero/node-red-contrib-hangouts](https://badges.gitter.im/mapero/node-red-contrib-hangouts.svg)](https://gitter.im/mapero/node-red-contrib-hangouts?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 Another breaking change, sorry for this. Since the create conversation and filter by sender is not working properly it was removed from the node. Instead on input and output the conversation id is used. To get all valid conversation ids, the config node will output all available conversations including the participants on connect. Use one of these to filter incoming messages and filter outgoing messages.
 
 I will check in the future, how to simplify this.
