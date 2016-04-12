@@ -53,26 +53,70 @@
     outputs:1,
     label: function() {
       return this.name ? this.name : "Hangouts";
+    },
+    oneditprepare: function() {
+      function formatConversations(conversation) {
+        var string = "";
+        if (conversation.name !== null) {
+          string += conversation.name+" | ";
+        };
+        string += conversation.participants.join(", ");
+        return string;
+      }
+
+      function toggleSelect() {
+        var current = $('#node-input-conversationId').val();
+        $('#node-input-conversationId').replaceWith('<input type="text" id="node-input-conversationId" style="width: 60%;"/>');
+        $('#node-input-conversationId').val(current);
+      }
+
+      function toggleInput() {
+        var current = $('#node-input-conversationId').val();
+        $('#node-input-conversationId').replaceWith('<select id="node-input-conversationId" style="width: 60%;"></select>');
+        $.get( 'hangouts/conversations', { id: $('#node-input-config').val() })
+          .done( function(data) {
+            var conversations = JSON.parse(data);
+            if(conversations.length <= 0) {
+              RED.notify("The configuration node is either not deployed or you don't have any conversations within this account.", "error");
+            }
+            conversations.forEach(function(conversation) {
+              $('#node-input-conversationId').append('<option value="' + conversation.id + '">' + formatConversations(conversation) + '</option>');
+            });
+            $('#node-input-conversationId').val(current);
+          })
+          .fail(function() {
+            RED.notify("Something went wrong.", "error");
+          });
+      }
+
+      $('#node-input-refreshbtn').click(function() {
+        if ($('#node-input-conversationId').prop("tagName") === "INPUT") {
+          toggleInput();
+        } else {
+          toggleSelect();
+        }
+      });
     }
   });
 </script>
 
 <script type="text/x-red" data-template-name="hangouts-in">
     <div class="form-row">
-        <label for="node-input-config"><i class="fa fa-user"></i>Config</label>
+        <label for="node-input-config"><i class="fa fa-user"></i> Config</label>
         <input type="text" id="node-input-config">
     </div>
     <div class="form-row">
-        <label for="node-input-name"><i class="icon-bookmark"></i>Name</label>
+        <label for="node-input-name"><i class="fa fa-header"></i> Name</label>
         <input type="text" id="node-input-name" />
     </div>
     <div class="form-row">
-        <label for="node-input-topic"><i class="icon-bookmark"></i>Topic</label>
+        <label for="node-input-topic"><i class="icon-bookmark"></i> Topic</label>
         <input type="text" id="node-input-topic" />
     </div>
     <div class="form-row">
-        <label for="node-input-conversationId"><i class="icon-bookmark"></i>Conversation id</label>
-        <input type="text" id="node-input-conversationId" />
+        <label for="node-input-conversationId"><i class="fa fa-comments"></i> Chat</label>
+        <input type="text" id="node-input-conversationId" style="width: 60%;"/>
+        <a id="node-input-refreshbtn" class="editor-button"><i class="fa fa-refresh"></i></a>
     </div>
     <div class="form-row">
       <label>&nbsp;</label>
@@ -101,22 +145,66 @@
     outputs:0,
     label: function() {
       return this.name ? this.name : "Hangouts";
+    },
+    oneditprepare: function() {
+      function formatConversations(conversation) {
+        var string = "";
+        if (conversation.name !== null) {
+          string += conversation.name+" | ";
+        };
+        string += conversation.participants.join(", ");
+        return string;
+      }
+
+      function toggleSelect() {
+        var current = $('#node-input-conversationId').val();
+        $('#node-input-conversationId').replaceWith('<input type="text" id="node-input-conversationId" style="width: 60%;"/>');
+        $('#node-input-conversationId').val(current);
+      }
+
+      function toggleInput() {
+        var current = $('#node-input-conversationId').val();
+        $('#node-input-conversationId').replaceWith('<select id="node-input-conversationId" style="width: 60%;"></select>');
+        $.get( 'hangouts/conversations', { id: $('#node-input-config').val() })
+          .done( function(data) {
+            var conversations = JSON.parse(data);
+            if(conversations.length <= 0) {
+              RED.notify("The configuration node is either not deployed or you don't have any conversations within this account.", "error");
+            }
+            conversations.forEach(function(conversation) {
+              $('#node-input-conversationId').append('<option value="' + conversation.id + '">' + formatConversations(conversation) + '</option>');
+            });
+            $('#node-input-conversationId').val(current);
+          })
+          .fail(function() {
+            RED.notify("Something went wrong.", "error");
+          });
+      }
+
+      $('#node-input-refreshbtn').click(function() {
+        if ($('#node-input-conversationId').prop("tagName") === "INPUT") {
+          toggleInput();
+        } else {
+          toggleSelect();
+        }
+      });
     }
   });
 </script>
 
 <script type="text/x-red" data-template-name="hangouts-out">
     <div class="form-row">
-        <label for="node-input-config"><i class="fa fa-user"></i>Config</label>
+        <label for="node-input-config"><i class="fa fa-user"></i> Config</label>
         <input type="text" id="node-input-config">
     </div>
     <div class="form-row">
-        <label for="node-input-name"><i class="icon-bookmark"></i>Name</label>
+        <label for="node-input-name"><i class="fa fa-header"></i> Name</label>
         <input type="text" id="node-input-name" />
     </div>
     <div class="form-row">
-        <label for="node-input-conversationId"><i class="icon-bookmark"></i>Conversation id</label>
-        <input type="text" id="node-input-conversationId" />
+        <label for="node-input-conversationId"><i class="fa fa-comments"></i> Chat</label>
+        <input type="text" id="node-input-conversationId" style="width: 60%;"/>
+        <a id="node-input-refreshbtn" class="editor-button"><i class="fa fa-refresh"></i></a>
     </div>
 </script>
 
