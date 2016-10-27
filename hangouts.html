@@ -210,5 +210,5 @@
 
 <script type="text/x-red" data-help-name="hangouts-out">
    <p>Receive messages from Google hangouts</p>
-   <p>The output node is used to send messages to an existing conversation. You can use the conversation id on the properties or provide a valid conversation id in <b>msg.conversationId</b>. The <b>msg.payload</b> will be send to the contacts.</p>
+   <p>The output node is used to send messages to an existing conversation. You can use the conversation id on the properties or provide a valid conversation id in <b>msg.conversationId</b>. If <b>msg.links</b> contains an array of hrefs they will be appended to the message. If <b>msg.image</b> is a filepath it will be appended to the message. The <b>msg.payload</b> will be send to the contacts.</p>
 </script>
