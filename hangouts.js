@@ -218,7 +218,7 @@ module.exports = function(RED) {
 				node.log("Message successfully send.");
 			}).catch(function(error) {
 				node.error(error);
-			}).done();
+			});
 
 			node.on("close", function(){
 				node.config.removeListener("status", node.refreshStatus);
