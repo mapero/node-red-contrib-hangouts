@@ -205,8 +205,16 @@ module.exports = function(RED) {
 				node.error("No conversation id provided.");
 			}
 
-			node.client.sendchatmessage(conversationId,[[0, msg.payload.toString()]])
-			.then(function(result) {
+			var bld = new hangups.MessageBuilder();
+			bld.text(msg.payload.toString());
+
+			(msg.links || []).forEach(function(link) {
+				bld.linebreak().link(link, link);
+			});
+			var img = msg.image && node.client.uploadimage(msg.image, "image.jpg") || Promise.resolve(null);
+			img.then(function(imageId) {
+				return node.client.sendchatmessage(conversationId, bld.toSegments(), imageId);
+			}).then(function(result) {
 				node.log("Message successfully send.");
 			}).catch(function(error) {
 				node.error(error);
