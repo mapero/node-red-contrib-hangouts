@@ -1,8 +1,6 @@
 var hangups = require("hangupsjs"),
 		tough = require('tough-cookie'),
-		Q = require("q"),
-		homeDir = require("home-dir"),
-		fs = require("fs");
+		Q = require("q");
 
 function map(arr, func) {
 	return Q().then(function() {
@@ -10,18 +8,7 @@ function map(arr, func) {
 	}).all();
 }
 
-function mkdirSync(path) {
-	try {
-		fs.mkdirSync(path);
-	} catch(e) {
-		if ( e.code != 'EEXIST' ) throw e;
-	}
-}
-
 module.exports = function(RED) {
-
-	//Create directory for refresh tokens
-	mkdirSync(homeDir('/.node-red-contrib-hangouts'));
 
 	RED.httpAdmin.get('/hangouts/conversations', function(req, res, next) {
 		var id = req.query.id;
@@ -41,7 +28,7 @@ module.exports = function(RED) {
 		node.conversations = [];
 		node.isConnected = false;
 		node.status = {fill:"yellow",shape:"ring",text:"connecting ..."};
-		node.refreshtoken = homeDir('/.node-red-contrib-hangouts/'+node.id+'.txt');
+		node.refreshtoken = RED.settings.userDir+'/hangouts_'+node.id+'.refreshtoken';
 
 		if(node.credentials.cookiejar) {
 			node.log("Loading cookies");
