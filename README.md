@@ -29,6 +29,7 @@ The output node is used to send messages to an existing conversation. You can us
 
 ## Credits
 Jochen Scheib
+Tommy Jonsson
 
 ## License
 MIT
