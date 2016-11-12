@@ -17,10 +17,21 @@
 
 <script type="text/x-red" data-template-name="hangouts-config">
     <div class="form-tips">
-      To login, you need to login using OAuth and provide the access token to the API. The API will shows up as "iOS Device" in your accounts page.
+      To login, you need to login using OAuth and provide the access token to the API.
+      Google has changed the way to authenticate and the way to optain this key got complicated.
 
-      This is the login URL:
-      <a target="_blank" href="https://accounts.google.com/o/oauth2/auth?&client_id=936475272427.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.google.com%2Faccounts%2FOAuthLogin&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code">OAuth Link</a>
+      Open the link and follow the steps:
+      <a target="_blank" href="https://accounts.google.com/o/oauth2/programmatic_auth?hl=en&scope=https%3A%2F%2Fwww.google.com%2Faccounts%2FOAuthLogin+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&client_id=936475272427.apps.googleusercontent.com&access_type=offline&delegated_client_id=183697946088-m3jnlsqshjhh5lbvg05k46q1k4qqtrgn.apps.googleusercontent.com&top_level_cookie=1">Link</a>
+      <ol>
+        <li>Enter your username, click next.</li>
+        <li>Right click page background, inspect</li>
+        <li>Go to the network tab.</li>
+        <li>Enter your password, click sign in</li>
+        <li>Click the first row in the network panel, the one that says "programmatic_auth"</li>
+        <li>Scroll down in the right-side panel, find "set-cookie"</li>
+        <li>Your code should be there, after "oauth_code=", up to but not including the semicolon.</li>
+        <li>Copy it and use it.</li>
+      </ol>
     </div>
     <div class="form-row">
         <label for="node-config-input-name"><i class="icon-bookmark"></i>Name</label>
