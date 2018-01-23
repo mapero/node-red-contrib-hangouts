@@ -1,3 +1,7 @@
+# Notice
+
+This node is no longer supported by me. Since there is no open API by google and supporting hangouts does mean to reverse engineering changes done by google, is a pain. I switched to telegram, since it is open and developer friendly.
+
 [![Join the chat at https://gitter.im/mapero/node-red-contrib-hangouts](https://badges.gitter.im/mapero/node-red-contrib-hangouts.svg)](https://gitter.im/mapero/node-red-contrib-hangouts?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Update 0.1.12
